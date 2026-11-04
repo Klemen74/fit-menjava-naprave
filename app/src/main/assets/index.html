@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FIT menjava naprave</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --line:#262b36; --text:#e8eaf0; --muted:#8b93a7;
+    --accent:#ff6a13; --accent2:#ffb37d; --ok:#3ecf8e; --err:#ff5d5d;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 Inter,system-ui,sans-serif;
+    background-image:radial-gradient(1200px 500px at 85% -10%,rgba(255,106,19,.12),transparent 60%)}
+  .wrap{max-width:860px;margin:0 auto;padding:40px 20px 60px}
+  h1{font:700 44px/1 "Barlow Condensed",sans-serif;letter-spacing:.5px;margin:0 0 6px;text-transform:uppercase}
+  h1 span{color:var(--accent)}
+  .lead{color:var(--muted);margin:0 0 28px;max-width:620px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;margin-bottom:18px}
+  .step{font:600 13px "Barlow Condensed",sans-serif;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);margin-bottom:10px}
+  #drop{border:2px dashed #3a4150;border-radius:12px;padding:34px 16px;text-align:center;cursor:pointer;transition:.15s}
+  #drop.over,#drop:hover{border-color:var(--accent);background:rgba(255,106,19,.05)}
+  #drop strong{display:block;font-size:17px;margin-bottom:4px}
+  #drop small{color:var(--muted)}
+  input[type=file]{display:none}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:620px){.grid{grid-template-columns:1fr}}
+  label.f{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+  select,input[type=number],input[type=text]{width:100%;background:#0f1218;color:var(--text);border:1px solid var(--line);
+    border-radius:9px;padding:10px 12px;font:inherit}
+  select:focus,input:focus{outline:2px solid var(--accent);outline-offset:-1px}
+  .row{display:flex;gap:10px;align-items:center;margin-top:10px;color:var(--muted);font-size:14px}
+  .row input{accent-color:var(--accent)}
+  .hidden{display:none!important}
+  button{background:var(--accent);color:#14100c;border:0;border-radius:10px;padding:12px 20px;font:600 15px Inter,sans-serif;cursor:pointer}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  button.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
+  .files{list-style:none;padding:0;margin:14px 0 0}
+  .files li{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin-top:8px;font-size:14px}
+  .files .meta{color:var(--muted);font-size:13px}
+  .badge{font-size:12px;padding:3px 8px;border-radius:20px;background:#222835;color:var(--muted);white-space:nowrap}
+  .badge.ok{background:rgba(62,207,142,.15);color:var(--ok)}
+  .badge.err{background:rgba(255,93,93,.15);color:var(--err)}
+  .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+  #msg{margin-top:12px;font-size:14px}
+  #msg.err{color:var(--err)} #msg.ok{color:var(--ok)}
+  .note{color:var(--muted);font-size:13px;margin-top:22px}
+  .note b{color:var(--text);font-weight:500}
+  a{color:var(--accent2)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>FIT <span>menjava naprave</span></h1>
+  <p class="lead">Naloži datoteko .fit (npr. iz Zwifta), izberi napravo in prenesi novo datoteko, ki je zapisana, kot da jo je posnela izbrana naprava. Vse se obdela v tvojem brskalniku, datoteka ne zapusti računalnika.</p>
+
+  <div class="card">
+    <div class="step">1 · Datoteke</div>
+    <div id="drop" tabindex="0" role="button">
+      <strong>Spusti .fit datoteke sem ali klikni za izbiro</strong>
+      <small>Lahko izbereš več datotek hkrati</small>
+    </div>
+    <input id="file" type="file" accept=".fit,.FIT" multiple>
+    <ul class="files" id="list"></ul>
+  </div>
+
+  <div class="card">
+    <div class="step">2 · Naprava</div>
+    <div class="grid">
+      <div style="grid-column:1/-1">
+        <label class="f" for="search">Išči napravo (479 naprav, enako kot na fitfiletools)</label>
+        <input id="search" type="text" placeholder="npr. edge 1040, fr965, fenix 8 …" autocomplete="off">
+      </div>
+      <div>
+        <label class="f" for="device">Naprava (Device Type)</label>
+        <select id="device"></select>
+      </div>
+      <div>
+        <label class="f" for="mfr">Proizvajalec (Manufacturer)</label>
+        <select id="mfr"></select>
+      </div>
+      <div id="customBox" class="hidden">
+        <label class="f" for="cProd">ID izdelka (0–65534)</label>
+        <input id="cProd" type="number" min="0" max="65534" placeholder="npr. 3843">
+      </div>
+      <div>
+        <label class="f" for="serialMode">Serijska številka</label>
+        <select id="serialMode">
+          <option value="random">Naključna (priporočeno)</option>
+          <option value="keep">Ohrani izvirno</option>
+          <option value="custom">Vnesi svojo</option>
+        </select>
+      </div>
+      <div id="serialBox" class="hidden">
+        <label class="f" for="serial">Serijska številka naprave</label>
+        <input id="serial" type="number" min="1" max="4294967294" placeholder="npr. 3412345678">
+      </div>
+    </div>
+    <div class="row" id="pick" style="color:var(--text)"></div>
+    <div class="row"><input type="checkbox" id="devInfo" checked><label for="devInfo">Spremeni tudi zapis glavne naprave (device_info)</label></div>
+    <div class="row"><input type="checkbox" id="clearName" checked><label for="clearName">Odstrani izvirno ime izdelka (npr. »Zwift«)</label></div>
+  </div>
+
+  <div class="card">
+    <div class="step">3 · Pretvori</div>
+    <div class="actions">
+      <button id="go" disabled>Pretvori in prenesi</button>
+      <button id="clear" class="ghost">Počisti</button>
+    </div>
+    <div id="msg"></div>
+  </div>
+
+  <p class="note"><b>Namen:</b> npr. da Garmin Connect upošteva vadbo iz Zwifta za obremenitev in Training Status. Podatki aktivnosti (moč, srčni utrip, kadenca, čas) ostanejo nespremenjeni, spremenijo se le podatki o napravi v sporočilih <code>file_id</code> in <code>device_info</code>. Če aktivnost že obstaja na Garmin Connect, jo pred ponovnim uvozom izbriši.</p>
+</div>
+
+<script>
+// ---- FIT device changer core (no dependencies) ----
+const FIT_CRC_TABLE = [0x0000,0xCC01,0xD801,0x1400,0xF001,0x3C00,0x2800,0xE401,0xA001,0x6C00,0x7800,0xB401,0x5000,0x9C01,0x8801,0x4400];
+function fitCrc(bytes, start = 0, end = bytes.length, crc = 0) {
+  for (let i = start; i < end; i++) {
+    const b = bytes[i];
+    let t = FIT_CRC_TABLE[crc & 0xF]; crc = (crc >> 4) & 0x0FFF; crc = crc ^ t ^ FIT_CRC_TABLE[b & 0xF];
+    t = FIT_CRC_TABLE[crc & 0xF]; crc = (crc >> 4) & 0x0FFF; crc = crc ^ t ^ FIT_CRC_TABLE[(b >> 4) & 0xF];
+  }
+  return crc;
+}
+
+const MSG_FILE_ID = 0, MSG_DEVICE_INFO = 23;
+
+function readUint(dv, off, size, le) {
+  if (size === 1) return dv.getUint8(off);
+  if (size === 2) return dv.getUint16(off, le);
+  if (size === 4) return dv.getUint32(off, le);
+  return null;
+}
+function writeUint(dv, off, size, le, v) {
+  if (size === 1) dv.setUint8(off, v);
+  else if (size === 2) dv.setUint16(off, v, le);
+  else if (size === 4) dv.setUint32(off, v >>> 0, le);
+}
+function readString(bytes, off, size) {
+  let s = '';
+  for (let i = 0; i < size && bytes[off + i] !== 0; i++) s += String.fromCharCode(bytes[off + i]);
+  try { return decodeURIComponent(escape(s)); } catch { return s; }
+}
+
+/**
+ * opts: { manufacturer, product, serial (number|null = keep), changeDeviceInfo (bool), clearProductName (bool) }
+ * returns { bytes: Uint8Array, report }
+ */
+function changeFitDevice(input, opts) {
+  const src = new Uint8Array(input); // plain copy (Node Buffers slice as views)
+  const outChunks = [];
+  const report = { original: null, fileIdChanged: 0, deviceInfoChanged: 0, fieldsAdded: [], files: 0, sourceCrcOk: true };
+  let pos = 0;
+
+  while (pos < src.length) {
+    if (src.length - pos < 12) break; // trailing junk
+    const hdrSize = src[pos];
+    if (hdrSize !== 12 && hdrSize !== 14) throw new Error('Neveljavna glava FIT (velikost glave ' + hdrSize + ').');
+    const sig = String.fromCharCode(src[pos + 8], src[pos + 9], src[pos + 10], src[pos + 11]);
+    if (sig !== '.FIT') throw new Error('Datoteka ni FIT (manjka oznaka ".FIT").');
+    const hdv = new DataView(src.buffer, src.byteOffset + pos, hdrSize);
+    const dataSize = hdv.getUint32(4, true);
+    const dataStart = pos + hdrSize, dataEnd = dataStart + dataSize;
+    if (dataEnd + 2 > src.length) throw new Error('Datoteka je prirezana ali poškodovana.');
+    const storedCrc = src[dataEnd] | (src[dataEnd + 1] << 8);
+    if (storedCrc !== 0 && fitCrc(src, pos, dataEnd) !== storedCrc) report.sourceCrcOk = false;
+
+    const body = [];
+    const defs = {};
+    const dv = new DataView(src.buffer, src.byteOffset);
+    let p = dataStart;
+    let origMfr = null;
+
+    while (p < dataEnd) {
+      const h = src[p];
+      if ((h & 0x80) === 0 && (h & 0x40)) {
+        // ---- definition message ----
+        const local = h & 0x0F, hasDev = (h & 0x20) !== 0;
+        const le = src[p + 2] === 0;
+        const global = le ? dv.getUint16(p + 3, true) : dv.getUint16(p + 3, false);
+        const nf = src[p + 5];
+        const fields = []; let off = 0;
+        for (let i = 0; i < nf; i++) {
+          const q = p + 6 + i * 3;
+          fields.push({ num: src[q], size: src[q + 1], base: src[q + 2], off });
+          off += src[q + 1];
+        }
+        const regSize = off;
+        let q = p + 6 + nf * 3, devSize = 0, devBytes = new Uint8Array(0);
+        if (hasDev) {
+          const nd = src[q];
+          for (let i = 0; i < nd; i++) devSize += src[q + 1 + i * 3 + 1];
+          devBytes = src.slice(q, q + 1 + nd * 3);
+          q += 1 + nd * 3;
+        }
+        const added = [];
+        if (global === MSG_FILE_ID) {
+          const has = n => fields.some(f => f.num === n);
+          if (!has(1)) added.push({ num: 1, size: 2, base: 0x84 });
+          if (!has(2)) added.push({ num: 2, size: 2, base: 0x84 });
+          if (!has(3) && opts.serial != null) added.push({ num: 3, size: 4, base: 0x8C });
+          added.forEach(a => report.fieldsAdded.push(a.num));
+        }
+        defs[local] = { global, le, fields, regSize, devSize, added };
+        if (added.length) {
+          const nd = new Uint8Array(6 + (nf + added.length) * 3 + devBytes.length);
+          nd.set(src.subarray(p, p + 6 + nf * 3), 0);
+          nd[5] = nf + added.length;
+          added.forEach((a, i) => { const o = 6 + (nf + i) * 3; nd[o] = a.num; nd[o + 1] = a.size; nd[o + 2] = a.base; });
+          nd.set(devBytes, 6 + (nf + added.length) * 3);
+          body.push(nd);
+        } else {
+          body.push(src.slice(p, q));
+        }
+        p = q;
+      } else {
+        // ---- data message (normal or compressed timestamp header) ----
+        const local = (h & 0x80) ? (h >> 5) & 0x03 : h & 0x0F;
+        const d = defs[local];
+        if (!d) throw new Error('Podatkovno sporočilo brez definicije na položaju ' + p + '.');
+        const total = d.regSize + d.devSize;
+        const rec = src.slice(p + 1, p + 1 + total);
+        const rdv = new DataView(rec.buffer);
+        const le = d.le;
+        const get = n => { const f = d.fields.find(x => x.num === n); return f ? readUint(rdv, f.off, f.size, le) : undefined; };
+        const set = (n, v, expectedSize) => {
+          const f = d.fields.find(x => x.num === n);
+          if (f && f.size === expectedSize) { writeUint(rdv, f.off, f.size, le, v); return true; }
+          return false;
+        };
+        const clearStr = n => { const f = d.fields.find(x => x.num === n); if (f) rec.fill(0, f.off, f.off + f.size); };
+
+        if (d.global === MSG_FILE_ID) {
+          const pn = d.fields.find(x => x.num === 8);
+          if (!report.original) report.original = {
+            manufacturer: get(1), product: get(2), serial: get(3),
+            productName: pn ? readString(rec, pn.off, pn.size) : ''
+          };
+          origMfr = get(1);
+          set(1, opts.manufacturer, 2);
+          set(2, opts.product, 2);
+          if (opts.serial != null) set(3, opts.serial, 4);
+          if (opts.clearProductName) clearStr(8);
+          report.fileIdChanged++;
+        } else if (d.global === MSG_DEVICE_INFO && opts.changeDeviceInfo) {
+          const idx = get(0), mfr = get(2);
+          const isCreator = idx === 0 || (idx === undefined && origMfr != null && mfr === origMfr);
+          if (isCreator) {
+            set(2, opts.manufacturer, 2);
+            set(4, opts.product, 2);
+            if (opts.serial != null) set(3, opts.serial, 4);
+            if (opts.clearProductName) clearStr(27);
+            report.deviceInfoChanged++;
+          }
+        }
+
+        if (d.added.length) {
+          const extra = new Uint8Array(d.added.reduce((s, a) => s + a.size, 0));
+          const edv = new DataView(extra.buffer); let o = 0;
+          for (const a of d.added) {
+            const v = a.num === 1 ? opts.manufacturer : a.num === 2 ? opts.product : opts.serial;
+            writeUint(edv, o, a.size, le, v); o += a.size;
+          }
+          const nr = new Uint8Array(1 + total + extra.length);
+          nr[0] = h;
+          nr.set(rec.subarray(0, d.regSize), 1);
+          nr.set(extra, 1 + d.regSize);           // added fields go before developer fields
+          nr.set(rec.subarray(d.regSize), 1 + d.regSize + extra.length);
+          body.push(nr);
+        } else {
+          const nr = new Uint8Array(1 + total); nr[0] = h; nr.set(rec, 1); body.push(nr);
+        }
+        p += 1 + total;
+      }
+    }
+    if (p !== dataEnd) throw new Error('Neskladje v strukturi datoteke.');
+
+    const newDataSize = body.reduce((s, c) => s + c.length, 0);
+    const hdr = src.slice(pos, pos + hdrSize);
+    const ndv = new DataView(hdr.buffer);
+    ndv.setUint32(4, newDataSize, true);
+    if (hdrSize === 14) ndv.setUint16(12, fitCrc(hdr, 0, 12), true);
+    let crc = fitCrc(hdr);
+    for (const c of body) crc = fitCrc(c, 0, c.length, crc);
+    const tail = new Uint8Array([crc & 0xFF, (crc >> 8) & 0xFF]);
+    outChunks.push(hdr, ...body, tail);
+    report.files++;
+    pos = dataEnd + 2;
+  }
+
+  const total = outChunks.reduce((s, c) => s + c.length, 0);
+  const out = new Uint8Array(total); let o = 0;
+  for (const c of outChunks) { out.set(c, o); o += c.length; }
+  return { bytes: out, report };
+}
+
+if (typeof module !== 'undefined') module.exports = { changeFitDevice, fitCrc };
+
+</script>
+<script>
+const PRODUCTS = '1:hrm1|2:axh01|3:axb01|4:axb02|5:hrm2ss|6:dsi_alf02|7:hrm3ss|8:hrm_run_single_byte_product_id|9:bsm|10:bcm|11:axs01|12:hrm_tri_single_byte_product_id|13:hrm4_run_single_byte_product_id|14:fr225_single_byte_product_id|15:gen3_bsm_single_byte_product_id|16:gen3_bcm_single_byte_product_id|22:hrm_fit_single_byte_product_id|255:OHR|473:fr301_china|474:fr301_japan|475:fr301_korea|494:fr301_taiwan|717:fr405|782:fr50|987:fr405_japan|988:fr60|1011:dsi_alf01|1018:fr310xt|1036:edge500|1124:fr110|1169:edge800|1199:edge500_taiwan|1213:edge500_japan|1253:chirp|1274:fr110_japan|1325:edge200|1328:fr910xt|1333:edge800_taiwan|1334:edge800_japan|1341:alf04|1345:fr610|1360:fr210_japan|1380:vector_ss|1381:vector_cp|1386:edge800_china|1387:edge500_china|1405:approach_g10|1410:fr610_japan|1422:edge500_korea|1436:fr70|1446:fr310xt_4t|1461:amx|1482:fr10|1497:edge800_korea|1499:swim|1537:fr910xt_china|1551:fenix|1555:edge200_taiwan|1561:edge510|1567:edge810|1570:tempe|1600:fr910xt_japan|1623:fr620|1632:fr220|1664:fr910xt_korea|1688:fr10_japan|1721:edge810_japan|1735:virb_elite|1736:edge_touring|1742:edge510_japan|1743:hrm_tri|1752:hrm_run|1765:fr920xt|1821:edge510_asia|1822:edge810_china|1823:edge810_taiwan|1836:edge1000|1837:vivo_fit|1853:virb_remote|1885:vivo_ki|1903:fr15|1907:vivo_active|1918:edge510_korea|1928:fr620_japan|1929:fr620_china|1930:fr220_japan|1931:fr220_china|1936:approach_s6|1956:vivo_smart|1967:fenix2|1988:epix|2050:fenix3|2052:edge1000_taiwan|2053:edge1000_japan|2061:fr15_japan|2067:edge520|2070:edge1000_china|2072:fr620_russia|2073:fr220_russia|2079:vector_s|2100:edge1000_korea|2130:fr920xt_taiwan|2131:fr920xt_china|2132:fr920xt_japan|2134:virbx|2135:vivo_smart_apac|2140:etrex_touch|2147:edge25|2148:fr25|2150:vivo_fit2|2153:fr225|2156:fr630|2157:fr230|2158:fr735xt|2160:vivo_active_apac|2161:vector_2|2162:vector_2s|2172:virbxe|2173:fr620_taiwan|2174:fr220_taiwan|2175:truswing|2187:d2airvenu|2188:fenix3_china|2189:fenix3_twn|2192:varia_headlight|2193:varia_taillight_old|2204:edge_explore_1000|2219:fr225_asia|2225:varia_radar_taillight|2226:varia_radar_display|2238:edge20|2260:edge520_asia|2261:edge520_japan|2262:d2_bravo|2266:approach_s20|2271:vivo_smart2|2274:edge1000_thai|2276:varia_remote|2288:edge25_asia|2289:edge25_jpn|2290:edge20_asia|2292:approach_x40|2293:fenix3_japan|2294:vivo_smart_emea|2310:fr630_asia|2311:fr630_jpn|2313:fr230_jpn|2327:hrm4_run|2332:epix_japan|2337:vivo_active_hr|2347:vivo_smart_gps_hr|2348:vivo_smart_hr|2361:vivo_smart_hr_asia|2362:vivo_smart_gps_hr_asia|2368:vivo_move|2379:varia_taillight|2396:fr235_asia|2397:fr235_japan|2398:varia_vision|2406:vivo_fit3|2407:fenix3_korea|2408:fenix3_sea|2413:fenix3_hr|2417:virb_ultra_30|2429:index_smart_scale|2431:fr235|2432:fenix3_chronos|2441:oregon7xx|2444:rino7xx|2457:epix_korea|2473:fenix3_hr_chn|2474:fenix3_hr_twn|2475:fenix3_hr_jpn|2476:fenix3_hr_sea|2477:fenix3_hr_kor|2496:nautix|2497:vivo_active_hr_apac|2503:fr35|2512:oregon7xx_ww|2530:edge_820|2531:edge_explore_820|2533:fr735xt_apac|2534:fr735xt_japan|2544:fenix5s|2547:d2_bravo_titanium|2567:varia_ut800|2593:running_dynamics_pod|2599:edge_820_china|2600:edge_820_japan|2604:fenix5x|2606:vivo_fit_jr|2622:vivo_smart3|2623:vivo_sport|2628:edge_820_taiwan|2629:edge_820_korea|2630:edge_820_sea|2650:fr35_hebrew|2656:approach_s60|2667:fr35_apac|2668:fr35_japan|2675:fenix3_chronos_asia|2687:virb_360|2691:fr935|2697:fenix5|2700:vivoactive3|2713:edge_1030|2727:fr35_sea|2733:fr235_china_nfc|2769:foretrex_601_701|2772:vivo_move_hr|2787:vector_3|2796:fenix5_asia|2797:fenix5s_asia|2798:fenix5x_asia|2806:approach_z80|2814:fr35_korea|2819:d2charlie|2831:vivo_smart3_apac|2832:vivo_sport_apac|2833:fr935_asia|2859:descent|2878:vivo_fit4|2886:fr645|2888:fr645m|2891:fr30|2900:fenix5s_plus|2909:Edge_130|2924:edge_1030_asia|2927:vivosmart_4|2945:vivo_move_hr_asia|2962:approach_x10|2977:fr30_asia|2988:vivoactive3m_w|3003:fr645_asia|3004:fr645m_asia|3011:edge_explore|3028:gpsmap66|3049:approach_s10|3066:vivoactive3m_l|3076:fr245|3077:fr245_music|3085:approach_g80|3092:edge_130_asia|3095:edge_1030_bontrager|3110:fenix5_plus|3111:fenix5x_plus|3112:edge_520_plus|3113:fr945|3121:edge_530|3122:edge_830|3126:instinct_esports|3134:fenix5s_plus_apac|3135:fenix5x_plus_apac|3142:edge_520_plus_apac|3143:descent_t1|3144:fr235l_asia|3145:fr245_asia|3163:vivo_active3m_apac|3192:gen3_bsm|3193:gen3_bcm|3218:vivo_smart4_asia|3224:vivoactive4_small|3225:vivoactive4_large|3226:venu|3246:marq_driver|3247:marq_aviator|3248:marq_captain|3249:marq_commander|3250:marq_expedition|3251:marq_athlete|3258:descent_mk2|3282:fr45|3284:gpsmap66i|3287:fenix6S_sport|3288:fenix6S|3289:fenix6_sport|3290:fenix6|3291:fenix6x|3299:hrm_dual|3300:hrm_pro|3308:vivo_move3_premium|3314:approach_s40|3321:fr245m_asia|3349:edge_530_apac|3350:edge_830_apac|3378:vivo_move3|3387:vivo_active4_small_asia|3388:vivo_active4_large_asia|3389:vivo_active4_oled_asia|3405:swim2|3420:marq_driver_asia|3421:marq_aviator_asia|3422:vivo_move3_asia|3441:fr945_asia|3446:vivo_active3t_chn|3448:marq_captain_asia|3449:marq_commander_asia|3450:marq_expedition_asia|3451:marq_athlete_asia|3461:index_smart_scale_2|3466:instinct_solar|3469:fr45_asia|3473:vivoactive3_daimler|3498:legacy_rey|3499:legacy_darth_vader|3500:legacy_captain_marvel|3501:legacy_first_avenger|3512:fenix6s_sport_asia|3513:fenix6s_asia|3514:fenix6_sport_asia|3515:fenix6_asia|3516:fenix6x_asia|3535:legacy_captain_marvel_asia|3536:legacy_first_avenger_asia|3537:legacy_rey_asia|3538:legacy_darth_vader_asia|3542:descent_mk2s|3558:edge_130_plus|3570:edge_1030_plus|3578:rally_200|3589:fr745|3596:venusq_music|3599:venusq_music_v2|3600:venusq|3615:lily|3624:marq_adventurer|3638:enduro|3639:swim2_apac|3648:marq_adventurer_asia|3652:fr945_lte|3702:descent_mk2_asia|3703:venu2|3704:venu2s|3737:venu_daimler_asia|3739:marq_golfer|3740:venu_daimler|3794:fr745_asia|3808:varia_rct715|3809:lily_asia|3812:edge_1030_plus_asia|3813:edge_130_plus_asia|3823:approach_s12|3837:venusq_asia|3843:edge_1040|3850:marq_golfer_asia|3851:venu2_plus|3865:gnss|3869:fr55|3872:enduro_asia|3888:instinct_2|3889:instinct_2s|3905:fenix7s|3906:fenix7|3907:fenix7x|3908:fenix7s_apac|3909:fenix7_apac|3910:fenix7x_apac|3927:approach_g12|3930:descent_mk2s_asia|3934:approach_s42|3943:epix_gen2|3944:epix_gen2_apac|3949:venu2s_asia|3950:venu2_asia|3978:fr945_lte_asia|3982:vivo_move_sport|3983:vivomove_trend|3986:approach_S12_asia|3990:fr255_music|3991:fr255_small_music|3992:fr255|3993:fr255_small|4001:approach_g12_asia|4002:approach_s42_asia|4005:descent_g1|4017:venu2_plus_asia|4024:fr955|4033:fr55_asia|4061:edge_540|4062:edge_840|4063:vivosmart_5|4071:instinct_2_asia|4105:marq_gen2|4115:venusq2|4116:venusq2music|4124:marq_gen2_aviator|4125:d2_air_x10|4130:hrm_pro_plus|4132:descent_g1_asia|4135:tactix7|4155:instinct_crossover|4169:edge_explore2|4222:descent_mk3|4223:descent_mk3i|4233:approach_s70|4257:fr265_large|4258:fr265_small|4260:venu3|4261:venu3s|4265:tacx_neo_smart|4266:tacx_neo2_smart|4267:tacx_neo2_t_smart|4268:tacx_neo_smart_bike|4269:tacx_satori_smart|4270:tacx_flow_smart|4271:tacx_vortex_smart|4272:tacx_bushido_smart|4273:tacx_genius_smart|4274:tacx_flux_flux_s_smart|4275:tacx_flux2_smart|4276:tacx_magnum|4305:edge_1040_asia|4312:epix_gen2_pro_42|4313:epix_gen2_pro_47|4314:epix_gen2_pro_51|4315:fr965|4341:enduro2|4374:fenix7s_pro_solar|4375:fenix7_pro_solar|4376:fenix7x_pro_solar|4380:lily2|4394:instinct_2x|4426:vivoactive5|4432:fr165|4433:fr165_music|4440:edge_1050|4442:descent_t2|4446:hrm_fit|4472:marq_gen2_commander|4477:lily_athlete|4525:rally_x10|4532:fenix8_solar|4533:fenix8_solar_large|4534:fenix8_small|4536:fenix8|4556:d2_mach1_pro|4575:enduro3|4583:instinctE_40mm|4584:instinctE_45mm|4585:instinct3_solar_45mm|4586:instinct3_amoled_45mm|4587:instinct3_amoled_50mm|4588:descent_g2|4603:venu_x1|4606:hrm_200|4625:vivoactive6|4631:fenix8_pro|4633:edge_550|4634:edge_850|4643:venu4|4644:venu4s|4647:approachS44|4655:edge_mtb|4656:approachS50|4666:fenix_e|4678:instinct_crossover_amoled|4745:bounce2|4759:instinct3_solar_50mm|4775:tactix8_amoled|4776:tactix8_solar|4814:fr170_music|4815:fr170|4825:approach_j1|4879:d2_mach2|4916:fr70_2026|4944:d2_air_x15|5056:d2_mach2_pro|10007:sdm4|10014:edge_remote|20119:training_center|20533:tacx_training_app_win|20534:tacx_training_app_mac|20565:tacx_training_app_mac_catalyst|30045:tacx_training_app_android|30046:tacx_training_app_ios|30047:tacx_training_app_legacy|65531:connectiq_simulator|65532:android_antplus_plugin|65534:connect'.split('|').map(s=>{const i=s.indexOf(':');return {id:+s.slice(0,i),key:s.slice(i+1)}});
+const MFRS = '1:garmin|2:garmin_fr405_antfs|3:zephyr|4:dayton|5:idt|6:srm|7:quarq|8:ibike|9:saris|10:spark_hk|11:tanita|12:echowell|13:dynastream_oem|14:nautilus|15:dynastream|16:timex|17:metrigear|18:xelic|19:beurer|20:cardiosport|21:a_and_d|22:hmm|23:suunto|24:thita_elektronik|25:gpulse|26:clean_mobile|27:pedal_brain|28:peaksware|29:saxonar|30:lemond_fitness|31:dexcom|32:wahoo_fitness|33:octane_fitness|34:archinoetics|35:the_hurt_box|36:citizen_systems|37:magellan|38:osynce|39:holux|40:concept2|41:shimano|42:one_giant_leap|43:ace_sensor|44:brim_brothers|45:xplova|46:perception_digital|47:bf1systems|48:pioneer|49:spantec|50:metalogics|51:4iiiis|52:seiko_epson|53:seiko_epson_oem|54:ifor_powell|55:maxwell_guider|56:star_trac|57:breakaway|58:alatech_technology_ltd|59:mio_technology_europe|60:rotor|61:geonaute|62:id_bike|63:specialized|64:wtek|65:physical_enterprises|66:north_pole_engineering|67:bkool|68:cateye|69:stages_cycling|70:sigmasport|71:tomtom|72:peripedal|73:wattbike|76:moxy|77:ciclosport|78:powerbahn|79:acorn_projects_aps|80:lifebeam|81:bontrager|82:wellgo|83:scosche|84:magura|85:woodway|86:elite|87:nielsen_kellerman|88:dk_city|89:tacx|90:direction_technology|91:magtonic|92:1partcarbon|93:inside_ride_technologies|94:sound_of_motion|95:stryd|96:icg|97:MiPulse|98:bsx_athletics|99:look|100:campagnolo_srl|101:body_bike_smart|102:praxisworks|103:limits_technology|104:topaction_technology|105:cosinuss|106:fitcare|107:magene|108:giant_manufacturing_co|109:tigrasport|110:salutron|111:technogym|112:bryton_sensors|113:latitude_limited|114:soaring_technology|115:igpsport|116:thinkrider|117:gopher_sport|118:waterrower|119:orangetheory|120:inpeak|121:kinetic|122:johnson_health_tech|123:polar_electro|124:seesense|125:nci_technology|126:iqsquare|127:leomo|128:ifit_com|129:coros_byte|130:versa_design|131:chileaf|132:cycplus|133:gravaa_byte|134:sigeyi|135:coospo|136:geoid|137:bosch|138:kyto|139:kinetic_sports|140:decathlon_byte|141:tq_systems|142:tag_heuer|143:keiser_fitness|144:zwift_byte|145:porsche_ep|146:blackbird|147:meilan_byte|148:ezon|149:laisi|150:myzone|151:abawo|152:bafang|153:luhong_technology|255:development|257:healthandlife|258:lezyne|259:scribe_labs|260:zwift|261:watteam|262:recon|263:favero_electronics|264:dynovelo|265:strava|266:precor|267:bryton|268:sram|269:navman|270:cobi|271:spivi|272:mio_magellan|273:evesports|274:sensitivus_gauge|275:podoon|276:life_time_fitness|277:falco_e_motors|278:minoura|279:cycliq|280:luxottica|281:trainer_road|282:the_sufferfest|283:fullspeedahead|284:virtualtraining|285:feedbacksports|286:omata|287:vdo|288:magneticdays|289:hammerhead|290:kinetic_by_kurt|291:shapelog|292:dabuziduo|293:jetblack|294:coros|295:virtugo|296:velosense|297:cycligentinc|298:trailforks|299:mahle_ebikemotion|300:nurvv|301:microprogram|302:zone5cloud|303:greenteg|304:yamaha_motors|305:whoop|306:gravaa|307:onelap|308:monark_exercise|309:form|310:decathlon|311:syncros|312:heatup|313:cannondale|314:true_fitness|315:RGT_cycling|316:vasa|317:race_republic|318:fazua|319:oreka_training|320:lsec|321:lululemon_studio|322:shanyue|323:spinning_mda|324:hilldating|325:aero_sensor|326:nike|327:magicshine|328:ictrainer|329:absolute_cycling|330:eo_swimbetter|331:mywhoosh|332:ravemen|333:tektro_racing_products|334:darad_innovation_corporation|335:cycloptim|337:runna|339:zepp|340:peloton|341:carv|342:tissot|345:real_velo|346:wetech|347:jespr|348:huawei|349:gotoes|350:cadence_app|5759:actigraphcorp'.split('|').map(s=>{const i=s.indexOf(':');return {id:+s.slice(0,i),key:s.slice(i+1)}});
+const POPULAR_DEV = ['edge_1050','edge_1040','edge_850','edge_840','edge_550','edge_540','edge_1030_plus','edge_830','edge_530','edge_explore2','edge_mtb','fr965','fr955','fr265_large','fr255','fr170','fenix8','fenix8_pro','fenix7','epix_gen2','enduro3','venu4'];
+const POPULAR_MFR = ['garmin','wahoo_fitness','hammerhead','coros','polar_electro','suunto','zwift','development'];
+const UP = {fr:'Forerunner',hrm:'HRM',gps:'GPS',gpsmap66:'GPSMAP 66',gpsmap66i:'GPSMAP 66i',apac:'(APAC)',asia:'(Asia)',japan:'(Japan)',jpn:'(Japan)',china:'(China)',chn:'(China)',taiwan:'(Taiwan)',twn:'(Taiwan)',korea:'(Korea)',kor:'(Korea)',sea:'(SEA)',russia:'(Russia)',thai:'(Thai)',emea:'(EMEA)',ww:'(WW)',lte:'LTE',xt:'XT',mtb:'MTB',ohr:'OHR',d2:'D2',tacx:'Tacx',marq:'MARQ',varia:'Varia',vivo:'vívo',fenix:'fēnix',epix:'epix',amoled:'AMOLED',plus:'Plus',solar:'Solar',pro:'Pro',music:'Music'};
+function pretty(key){
+  let k=key.replace(/^Edge_/,'edge_').replace(/^fr(\d)/,'fr_$1').replace(/^edge(\d)/,'edge_$1').replace(/^fenix(\d)/,'fenix_$1').replace(/^venu(\d)/,'venu_$1').replace(/^vivoactive(\d)/,'vivoactive_$1').replace(/^enduro(\d)/,'enduro_$1').replace(/^instinct(\d)/,'instinct_$1');
+  return k.split('_').filter(Boolean).flatMap(w=>{const m=w.match(/^([a-z]{4,})(\d+)$/i);return m&&!UP[w.toLowerCase()]?[m[1],m[2]]:[w]}).map((w,i)=>UP[w.toLowerCase()]??(w.length<=2&&/[a-z]/i.test(w)&&!/\d/.test(w)?w.toUpperCase():w.charAt(0).toUpperCase()+w.slice(1))).join(' ');
+}
+const prettyMfr = k => k.split('_').map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
+const PROD_BY_ID = Object.fromEntries(PRODUCTS.map(p=>[p.id,p]));
+const MFR_BY_ID = Object.fromEntries(MFRS.map(m=>[m.id,m]));
+
+const $ = id => document.getElementById(id);
+const sel = $('device'), mfrSel = $('mfr');
+function opt(v,t){const o=document.createElement('option');o.value=v;o.textContent=t;return o}
+function group(label,items){const g=document.createElement('optgroup');g.label=label;items.forEach(o=>g.appendChild(o));return g}
+
+// manufacturers
+mfrSel.appendChild(group('Pogosti',POPULAR_MFR.map(k=>MFRS.find(m=>m.key===k)).filter(Boolean).map(m=>opt(m.id,prettyMfr(m.key)+' · '+m.id))));
+mfrSel.appendChild(group('Vsi proizvajalci',[...MFRS].sort((a,b)=>a.key.localeCompare(b.key)).map(m=>opt(m.id,prettyMfr(m.key)+' · '+m.id))));
+mfrSel.value='1';
+
+function fillDevices(q=''){
+  const cur=sel.value; sel.innerHTML='';
+  const norm=s=>s.toLowerCase().replace(/[_\s]+/g,'').replace('ē','e');
+  const nq=norm(q);
+  const match=p=>!nq||norm(p.key).includes(nq)||norm(pretty(p.key)).includes(nq)||String(p.id)===q.trim();
+  const pop=POPULAR_DEV.map(k=>PRODUCTS.find(p=>p.key===k)).filter(p=>p&&match(p));
+  const all=PRODUCTS.filter(match).sort((a,b)=>pretty(a.key).localeCompare(pretty(b.key),'sl',{numeric:true}));
+  if(pop.length) sel.appendChild(group('Priljubljene',pop.map(p=>opt(p.id,pretty(p.key)+' · '+p.id))));
+  if(all.length) sel.appendChild(group(q?'Zadetki ('+all.length+')':'Vse naprave (A–Ž)',all.map(p=>opt(p.id,pretty(p.key)+' · '+p.id))));
+  sel.appendChild(group('Drugo',[opt('custom','Ročni vnos ID-ja izdelka …')]));
+  if([...sel.options].some(o=>o.value===cur)) sel.value=cur;
+  updatePick();
+}
+function updatePick(){
+  $('customBox').classList.toggle('hidden',sel.value!=='custom');
+  const m=MFR_BY_ID[mfrSel.value], p=PROD_BY_ID[sel.value];
+  $('pick').innerHTML = p ? `Izbrano: <b style="margin:0 4px">${pretty(p.key)}</b> <span style="color:var(--muted)">(${m?prettyMfr(m.key):'?'} ${mfrSel.value} / izdelek ${p.id})</span>` : '';
+}
+function savePick(){try{localStorage.setItem('fitdev2',JSON.stringify({d:sel.value,m:mfrSel.value}))}catch{}}
+fillDevices();
+try{const s=JSON.parse(localStorage.getItem('fitdev2')||'null'); if(s){ if([...mfrSel.options].some(o=>o.value===s.m)) mfrSel.value=s.m; if([...sel.options].some(o=>o.value===s.d)) sel.value=s.d; else sel.value='3843'; } else sel.value='3843';}catch{sel.value='3843'}
+updatePick();
+$('search').addEventListener('input',e=>{fillDevices(e.target.value); if(e.target.value && sel.options.length) { const first=[...sel.options].find(o=>o.value!=='custom'); if(first) sel.value=first.value; updatePick(); }});
+sel.onchange=()=>{updatePick();savePick()}; mfrSel.onchange=()=>{updatePick();savePick()};
+$('serialMode').onchange=()=>$('serialBox').classList.toggle('hidden',$('serialMode').value!=='custom');
+
+let files=[]; // {name, buf, info}
+function describe(o){
+  if(!o) return 'brez file_id';
+  const m = MFR_BY_ID[o.manufacturer] ? prettyMfr(MFR_BY_ID[o.manufacturer].key) : ('proizv. '+o.manufacturer);
+  const p = o.manufacturer===1 && PROD_BY_ID[o.product] ? pretty(PROD_BY_ID[o.product].key) : (o.productName || (o.product!=null?'izdelek '+o.product:''));
+  return (p && p!==m ? m+' '+p : m).trim();
+}
+async function addFiles(list){
+  for(const f of list){
+    if(!/\.fit$/i.test(f.name)) continue;
+    const buf=new Uint8Array(await f.arrayBuffer());
+    let info, err=null;
+    try{ info = changeFitDevice(buf,{manufacturer:0,product:0,serial:null,changeDeviceInfo:false}).report; }catch(e){err=e.message}
+    files.push({name:f.name,buf,info,err});
+  }
+  render();
+}
+function render(){
+  $('list').innerHTML='';
+  files.forEach((f,i)=>{
+    const li=document.createElement('li');
+    const kb=Math.max(1,Math.round(f.buf.length/1024))+' KB';
+    li.innerHTML=`<div><div>${esc(f.name)}</div><div class="meta">${kb} · ${f.err?esc(f.err):'zdaj: '+esc(describe(f.info.original))}</div></div>`+
+      `<span class="badge ${f.done?'ok':f.err?'err':''}">${f.done?'pretvorjeno':f.err?'napaka':'pripravljeno'}</span>`;
+    $('list').appendChild(li);
+  });
+  $('go').disabled=!files.some(f=>!f.err);
+}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function msg(t,c){const m=$('msg');m.textContent=t;m.className=c||''}
+
+const drop=$('drop');
+drop.onclick=()=>$('file').click();
+drop.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('file').click()}};
+$('file').onchange=e=>{addFiles(e.target.files);e.target.value=''};
+['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over')}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over')}));
+drop.addEventListener('drop',e=>addFiles(e.dataTransfer.files));
+$('clear').onclick=()=>{files=[];render();msg('')};
+
+// ---- minimal ZIP (store) for the sandboxed artifact viewer, where .fit cannot be saved directly ----
+const CRC32=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return b=>{let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=t[(c^b[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0}})();
+function makeZip(entries){
+  const enc=new TextEncoder(), parts=[], central=[]; let off=0;
+  const d=new Date(), dt=((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate(), tm=(d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1);
+  for(const {name,data} of entries){
+    const nm=enc.encode(name), crc=CRC32(data);
+    const h=new DataView(new ArrayBuffer(30));
+    h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint16(6,0x0800,true);h.setUint16(8,0,true);
+    h.setUint16(10,tm,true);h.setUint16(12,dt,true);h.setUint32(14,crc,true);h.setUint32(18,data.length,true);h.setUint32(22,data.length,true);
+    h.setUint16(26,nm.length,true);h.setUint16(28,0,true);
+    parts.push(new Uint8Array(h.buffer),nm,data);
+    const c=new DataView(new ArrayBuffer(46));
+    c.setUint32(0,0x02014b50,true);c.setUint16(4,20,true);c.setUint16(6,20,true);c.setUint16(8,0x0800,true);c.setUint16(10,0,true);
+    c.setUint16(12,tm,true);c.setUint16(14,dt,true);c.setUint32(16,crc,true);c.setUint32(20,data.length,true);c.setUint32(24,data.length,true);
+    c.setUint16(28,nm.length,true);c.setUint32(42,off,true);
+    central.push(new Uint8Array(c.buffer),nm);
+    off+=30+nm.length+data.length;
+  }
+  const cdSize=central.reduce((s,p)=>s+p.length,0);
+  const e=new DataView(new ArrayBuffer(22));
+  e.setUint32(0,0x06054b50,true);e.setUint16(8,entries.length,true);e.setUint16(10,entries.length,true);e.setUint32(12,cdSize,true);e.setUint32(16,off,true);
+  return new Blob([...parts,...central,new Uint8Array(e.buffer)]);
+}
+
+let downloadsApi; // undefined = not resolved yet, null = not available
+if(window.claude && typeof window.claude.use==='function'){
+  window.claude.use('downloads').then(d=>downloadsApi=d).catch(()=>downloadsApi=null);
+} else downloadsApi=null;
+const inArtifact = () => downloadsApi!==null && downloadsApi!==undefined;
+
+function b64(u8){let s='';for(let i=0;i<u8.length;i+=0x8000)s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));return btoa(s)}
+// called by the Android app when a .fit is shared/opened into it
+window.addAndroidFile=(name,data)=>{const bin=atob(data),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);addFiles([{name,arrayBuffer:async()=>u.buffer}]);};
+function directDownload(name,data){
+  const url=URL.createObjectURL(data instanceof Blob?data:new Blob([data],{type:'application/octet-stream'}));
+  const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),4000);
+}
+
+$('go').onclick=async()=>{
+  let mfr=parseInt(mfrSel.value,10), prod, label;
+  if(sel.value==='custom'){
+    prod=parseInt($('cProd').value,10);
+    if(!(prod>=0&&prod<65535)) return msg('Vnesi veljaven ID izdelka (0–65534).','err');
+    label='product_'+prod;
+  } else { prod=parseInt(sel.value,10); label=PROD_BY_ID[prod]?pretty(PROD_BY_ID[prod].key):'product_'+prod; }
+  const sm=$('serialMode').value; let fixedSerial=null;
+  if(sm==='custom'){ fixedSerial=parseInt($('serial').value,10); if(!(fixedSerial>0&&fixedSerial<4294967295)) return msg('Vnesi veljavno serijsko številko.','err'); }
+
+  const out=[]; const errs=[];
+  for(const f of files){
+    if(f.err) continue;
+    const serial = sm==='keep'?null : sm==='custom'?fixedSerial : (3300000000+Math.floor(Math.random()*600000000));
+    try{
+      const r=changeFitDevice(f.buf,{manufacturer:mfr,product:prod,serial,changeDeviceInfo:$('devInfo').checked,clearProductName:$('clearName').checked});
+      const base=f.name.replace(/\.fit$/i,'');
+      out.push({name:`${base}_${label.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\w]+/g,'_').replace(/_+$/,'')}.fit`,data:r.bytes});
+      f.done=true;
+    }catch(e){errs.push(f.name+': '+e.message)}
+  }
+  render();
+  if(!out.length) return msg(errs.join(' · ')||'Ni datotek za pretvorbo.','err');
+
+  try{
+    if(window.AndroidBridge){
+      const saved=out.map(o=>AndroidBridge.saveFile(o.name, b64(o.data))).filter(Boolean);
+      if(!saved.length) return msg('Shranjevanje ni uspelo.','err');
+      msg(`Shranjeno v ${saved.join(', ')}`+(errs.length?' Napake: '+errs.join(' · '):''),'ok');
+    } else if(inArtifact()){
+      const blob = makeZip(out);
+      const zipName = out.length===1 ? out[0].name.replace(/\.fit$/,'.zip') : `fit_${label.replace(/[^\w]+/g,'_')}_${out.length}.zip`;
+      await downloadsApi.save({filename:zipName,data:blob});
+      msg(`Shranjeno: ${zipName}. Datoteko .fit razširi iz ZIP-a in jo uvozi v Garmin Connect.`+(errs.length?' Napake: '+errs.join(' · '):''),'ok');
+    } else {
+      out.forEach((o,i)=>setTimeout(()=>directDownload(o.name,o.data),i*300));
+      msg(`Pretvorjenih datotek: ${out.length}. Prenos se je začel.`+(errs.length?' Napake: '+errs.join(' · '):''),'ok');
+    }
+  }catch(e){
+    const code=e&&e.code;
+    if(code==='declined') msg('Prenos preklican.','');
+    else msg('Prenos ni uspel ('+(code||e.message||e)+').','err');
+  }
+};
+</script>
+</body>
+</html>
